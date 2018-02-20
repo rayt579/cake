@@ -191,17 +191,57 @@ Like bit.ly
     3) Following a shortlink should be fast
     4) The shortlink follower should be resilient to laod spikes.
 
+7) How do we scale our link follower to be fast for read/writes.
+- DB to be read to get the destination for the given slug is going to be the first bottleneck.
+    - In general databse operations usually bottleneck before business logic.
+
+- What kind of database should we use to store the shortlinks? -> SQL, NOSQL.
+    - SQL: good for performing complex queries using joins, good if planning to look at releationships between things
+    - NoSQL: faster for writes and simple key-value reads.
+
+    We probably don't need to do relational queries, so let's go with a NoSQL DB
+    * Also consider adding an abstraction layer to decouple the DB from the model
+
+- How to unbottleneck database reads?
+    You must make sure that you are indexing the right way
+
+    Your should make the key for each row in the ShortLink table be the slug.
+        * Note: If you used RDBMS, you could use the global current_random_slug_id as the auto-incrementing index, but you
+        would need to handle the user generated slugs.
+
+- How else to speed up reads?
+    Implement as much data in-memory as possible to avoid disc seeks. This becomes very important if one of the links
+    get a heavy load of requests (front page of Reddit). Have the redirect link (destination) in memory to process quickly.
+        Depending on the database we use, it might already have an in-memory cache system.
+
+    We could additionally add our own cacheing layer, using memcached.
+        This adds complexity, as you have to maintain two sources of truth the DB and the cache layer.
+        You need to push edits to both the database and the cache, it could slow down reads if you get a lot of cache misses.
+
+        1) Cache eviction strategy: What to do once our cache is full? LRU (least recently used)
+        2) Sharding strategy: sharding the cache lets you store more things in memory, because you can horizontally scale.
+            You can decide what goes into which shard using a hash and mod strategy.
+            But how do you add or remove a shard without causing an unmanageable spike in cache misses?
+
+    It might be a better idea to shard the DB instead of, or in addition to caching. If the database has a built-in
+    memory cache, sharding the DB would allow to keep more data in working memory without additional cacheing layer.
+
+    Adding and removing database/cache shards can be painful, because you will have to migrate your schema without downtime.
+
+    Cassandra offers sharding systems built in.
+
+8) How to be resilient to load spikes?
+- Have multiple webserver workers, and put them behind a load balancer.that distributes incoming requests among the workers.
+    More web servers will add more complexity to the database and caching layers
+    you will need to handle multiple connections to the webservers.
 
 
-
-
-
-
-
-
-
-
+There are a bunch more directions to go with this:
+    1) Split creation endpoint across multiple workers. How do you stay in sync about what current_random_slug_id?
+    2) Uptime and (Single Point of Failure) SPOF are common concerns. How to make sure that a single machine won't bring
+    down the whole system.
+    3) Analytics. What if you want to provide users with information of the links they've created. What analytics would
+    you show, and where can you store and display them.
+    4) Editing and deleting. How would you add edit and delete features?
+    5) Optimizing for implementation time. You built a machine for scale, but how would you get an MVP off the ground.
 '''
-
-
-
