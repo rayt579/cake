@@ -3,7 +3,7 @@ Implement a new class MaxStack with a method get_max()
 that returns the largest element in the stack.
 
 TAKEAWAYS:
-    1) Look for what you need to optimize, clarify with your interviewer.
+    1) Look for what you need to optimize, clarify with your interviewer
 '''
 
 # O(1) time for push(), pop(), get_max()
